@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class TransactionsService {
 
-    ConcurrentHashMap<Long, Transaction> storage = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Transaction> storage = new ConcurrentHashMap<>();
 
     public Statistics getStatistics() {
         //storage.entrySet().removeIf((k) -> (Duration.between(k.getValue().getTimestamp(), LocalDateTime.now(Clock.systemUTC())).getSeconds() >= 60));
@@ -35,7 +35,7 @@ public class TransactionsService {
         final AtomicReference<BigDecimal> max = new AtomicReference<>(BigDecimal.ZERO);
         final AtomicReference<BigDecimal> min = new AtomicReference<>(BigDecimal.ZERO);
 
-        AtomicInteger tmp = new AtomicInteger(0);
+        AtomicInteger tmp = new AtomicInteger();
         storage.forEach((k, v) -> {
             // delete transactions older than 60 seconds
             if (Duration.between(v.getTimestamp(), LocalDateTime.now(Clock.systemUTC())).getSeconds() >= 60) {
@@ -46,32 +46,30 @@ public class TransactionsService {
 
         storage.forEach((k, v) -> {
             // init min with first value
-            if (tmp.get() == 0 && Duration.between(v.getTimestamp(), LocalDateTime.now(Clock.systemUTC())).getSeconds() >= 60) {
+            if (tmp.get() == 0) {
                 min.set(v.getAmount());
                 tmp.getAndIncrement();
             }
             // calculate min, max, sum, tot
-            else {
-                if (max.get().compareTo(v.getAmount()) < 0) max.set(v.getAmount());
-                if (min.get().compareTo(v.getAmount()) > 0) min.set(v.getAmount());
-                sum.accumulateAndGet(v.getAmount(), BigDecimal::add);
-                tot.accumulateAndGet(BigDecimal.ONE, BigDecimal::add);
-            }
+            if (max.get().compareTo(v.getAmount()) < 0) max.set(v.getAmount());
+            if (min.get().compareTo(v.getAmount()) > 0) min.set(v.getAmount());
+            sum.accumulateAndGet(v.getAmount(), BigDecimal::add);
+            tot.accumulateAndGet(BigDecimal.ONE, BigDecimal::add);
         });
 
         // calc avg
         if (tot.get().intValue() > 0) {
             avg.set(sum.get().divide(tot.get(), 2, RoundingMode.HALF_UP));
         }
+
         // return to the controller
-        Statistics statistics = new Statistics(
+        return new Statistics(
             NumberUtils.roundAndScale(sum.get()),
             NumberUtils.roundAndScale(avg.get()),
             NumberUtils.roundAndScale(max.get()),
             NumberUtils.roundAndScale(min.get()),
             tot.get().longValue()
         );
-        return statistics;
     }
 
     public HttpStatus postTransactions(String txn) {
@@ -97,9 +95,6 @@ public class TransactionsService {
             if (!duration.isNegative() && duration.getSeconds() < 60) {
                 storage.put(System.nanoTime(), new Transaction(transaction.getAmount(), transaction.getTimestamp()));
                 status = HttpStatus.CREATED;
-            }
-            else if (!duration.isNegative()) {
-                status = HttpStatus.NO_CONTENT;
             }
             else if (duration.isNegative()) {
                 status = HttpStatus.UNPROCESSABLE_ENTITY;

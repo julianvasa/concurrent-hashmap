@@ -32,7 +32,6 @@ public class Test_Integration {
     private LocalDateTime now;
     private String request;
     private HttpStatus expectedStatus;
-    private HttpStatus actualStatus;
 
     @Before
     public void cleanUp(){
