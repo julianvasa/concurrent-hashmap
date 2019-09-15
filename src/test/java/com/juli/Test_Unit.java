@@ -3,10 +3,7 @@ package com.juli;
 import com.juli.models.Statistics;
 import com.juli.services.TransactionsService;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -15,7 +12,6 @@ import java.time.format.DateTimeFormatter;
 
 import static org.junit.Assert.assertEquals;
 
-@RunWith(SpringRunner.class)
 public class Test_Unit {
 
     private final TransactionsService service = new TransactionsService();

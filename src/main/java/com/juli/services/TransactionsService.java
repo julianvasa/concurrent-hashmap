@@ -27,8 +27,6 @@ public class TransactionsService {
     private final ConcurrentHashMap<Long, Transaction> storage = new ConcurrentHashMap<>();
 
     public Statistics getStatistics() {
-        //storage.entrySet().removeIf((k) -> (Duration.between(k.getValue().getTimestamp(), LocalDateTime.now(Clock.systemUTC())).getSeconds() >= 60));
-
         final AtomicReference<BigDecimal> tot = new AtomicReference<>(BigDecimal.ZERO);
         final AtomicReference<BigDecimal> sum = new AtomicReference<>(BigDecimal.ZERO);
         final AtomicReference<BigDecimal> avg = new AtomicReference<>(BigDecimal.ZERO);
@@ -36,14 +34,28 @@ public class TransactionsService {
         final AtomicReference<BigDecimal> min = new AtomicReference<>(BigDecimal.ZERO);
 
         AtomicInteger tmp = new AtomicInteger();
-        storage.forEach((k, v) -> {
-            // delete transactions older than 60 seconds
-            if (Duration.between(v.getTimestamp(), LocalDateTime.now(Clock.systemUTC())).getSeconds() >= 60) {
-                // Delete transactions >= 60 seconds
-                storage.remove(k);
-            }
-        });
+        deleteTransactionsOlderThan60seconds();
 
+        calculateMinMaxSumTot(tot, sum, max, min, tmp);
+        calcAvg(tot, sum, avg);
+
+        // return to the controller
+        return new Statistics(
+            NumberUtils.roundAndScale(sum.get()),
+            NumberUtils.roundAndScale(avg.get()),
+            NumberUtils.roundAndScale(max.get()),
+            NumberUtils.roundAndScale(min.get()),
+            tot.get().longValue()
+        );
+    }
+
+    private void calcAvg(AtomicReference<BigDecimal> tot, AtomicReference<BigDecimal> sum, AtomicReference<BigDecimal> avg) {
+        if (tot.get().intValue() > 0) {
+            avg.set(sum.get().divide(tot.get(), 2, RoundingMode.HALF_UP));
+        }
+    }
+
+    private void calculateMinMaxSumTot(AtomicReference<BigDecimal> tot, AtomicReference<BigDecimal> sum, AtomicReference<BigDecimal> max, AtomicReference<BigDecimal> min, AtomicInteger tmp) {
         storage.forEach((k, v) -> {
             // init min with first value
             if (tmp.get() == 0) {
@@ -56,20 +68,16 @@ public class TransactionsService {
             sum.accumulateAndGet(v.getAmount(), BigDecimal::add);
             tot.accumulateAndGet(BigDecimal.ONE, BigDecimal::add);
         });
+    }
 
-        // calc avg
-        if (tot.get().intValue() > 0) {
-            avg.set(sum.get().divide(tot.get(), 2, RoundingMode.HALF_UP));
-        }
-
-        // return to the controller
-        return new Statistics(
-            NumberUtils.roundAndScale(sum.get()),
-            NumberUtils.roundAndScale(avg.get()),
-            NumberUtils.roundAndScale(max.get()),
-            NumberUtils.roundAndScale(min.get()),
-            tot.get().longValue()
-        );
+    private void deleteTransactionsOlderThan60seconds() {
+        storage.forEach((k, v) -> {
+            // delete transactions older than 60 seconds
+            if (Duration.between(v.getTimestamp(), LocalDateTime.now(Clock.systemUTC())).getSeconds() >= 60) {
+                // Delete transactions >= 60 seconds
+                storage.remove(k);
+            }
+        });
     }
 
     public HttpStatus postTransactions(String txn) {
@@ -82,9 +90,6 @@ public class TransactionsService {
             DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
             LocalDateTime timeStamp = LocalDateTime.parse(jsonObject.get("timestamp").getAsString(), dateTimeFormatter);
             BigDecimal amount = jsonObject.get("amount").getAsBigDecimal();
-            /*DecimalFormat f = new DecimalFormat("##0.00");
-            f.format(amount.setScale(2, RoundingMode.HALF_UP));*/
-
             // create the transaction object with the well formatted fields
             Transaction transaction = new Transaction(amount, timeStamp);
             // create datetime of current instant in UTC
