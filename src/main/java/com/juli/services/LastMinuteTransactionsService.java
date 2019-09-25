@@ -21,11 +21,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * LastMinuteTransactionService is a service used to store, retrieve and delete transactions performed the last 60 seconds
+ */
 @Service
-public class TransactionsService {
+public class LastMinuteTransactionsService implements LastMinuteService {
 
     private final ConcurrentHashMap<Long, Transaction> storage = new ConcurrentHashMap<>();
 
+    /**
+     * Get Avg, Min, Max, Tot and Count statistics for the stored transactions in the last 60 seconds
+     * Also delete transactions older than 60 seconds when the GET request is performed
+     * @return Statistics object
+     */
     public Statistics getStatistics() {
         final AtomicReference<BigDecimal> tot = new AtomicReference<>(BigDecimal.ZERO);
         final AtomicReference<BigDecimal> sum = new AtomicReference<>(BigDecimal.ZERO);
@@ -49,12 +57,14 @@ public class TransactionsService {
         );
     }
 
+    /** Calculate Avg for the transactions performed in the last 60 seconds **/
     private void calcAvg(AtomicReference<BigDecimal> tot, AtomicReference<BigDecimal> sum, AtomicReference<BigDecimal> avg) {
         if (tot.get().intValue() > 0) {
             avg.set(sum.get().divide(tot.get(), 2, RoundingMode.HALF_UP));
         }
     }
 
+    /** Calculate Min, Max, Tot and Sum for the transactions performed in the last 60 seconds **/
     private void calculateMinMaxSumTot(AtomicReference<BigDecimal> tot, AtomicReference<BigDecimal> sum, AtomicReference<BigDecimal> max, AtomicReference<BigDecimal> min, AtomicInteger tmp) {
         storage.forEach((k, v) -> {
             // init min with first value
@@ -70,6 +80,7 @@ public class TransactionsService {
         });
     }
 
+    /** Delete transactions older than 60 seconds **/
     private void deleteTransactionsOlderThan60seconds() {
         storage.forEach((k, v) -> {
             // delete transactions older than 60 seconds
@@ -80,7 +91,12 @@ public class TransactionsService {
         });
     }
 
-    public HttpStatus postTransactions(String txn) {
+    /**
+     * Insert a new transaction
+     * @param txn Input Transaction as a string
+     * @return HttpStatus
+     */
+    public HttpStatus insert(String txn) {
         HttpStatus status = HttpStatus.NO_CONTENT;
         try {
             Gson gson = new Gson();
@@ -112,8 +128,11 @@ public class TransactionsService {
         return status;
     }
 
-
-    public HttpStatus deleteTransactions() {
+    /**
+     * Delete all transactions
+     * @return HttpStatus
+     */
+    public HttpStatus deleteAllData() {
         storage.clear();
         return HttpStatus.NO_CONTENT;
     }

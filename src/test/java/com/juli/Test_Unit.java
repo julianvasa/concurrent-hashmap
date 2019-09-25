@@ -1,7 +1,8 @@
 package com.juli;
 
 import com.juli.models.Statistics;
-import com.juli.services.TransactionsService;
+import com.juli.services.LastMinuteService;
+import com.juli.services.LastMinuteTransactionsService;
 import org.junit.Test;
 import org.springframework.http.HttpStatus;
 
@@ -14,7 +15,7 @@ import static org.junit.Assert.assertEquals;
 
 public class Test_Unit {
 
-    private final TransactionsService service = new TransactionsService();
+    private final LastMinuteService service = new LastMinuteTransactionsService();
     private HttpStatus expectedStatus;
     private HttpStatus actualStatus;
     private LocalDateTime now;
@@ -37,7 +38,7 @@ public class Test_Unit {
             "\"amount\": \"133.20\"," +
             "\"timestamp\": \"" + now.format(dateTimeFormatter) + "\"" +
             "}";
-        actualStatus = service.postTransactions(request);
+        actualStatus = service.insert(request);
         expectedStatus = HttpStatus.CREATED;
         assertEquals(actualStatus, expectedStatus);
     }
@@ -50,7 +51,7 @@ public class Test_Unit {
             "\"amount\": \"133.20\"," +
             "\"timestamp\": \"" + now.format(dateTimeFormatter) + "\"" +
             "}";
-        actualStatus = service.postTransactions(request);
+        actualStatus = service.insert(request);
         expectedStatus = HttpStatus.NO_CONTENT;
         assertEquals(actualStatus, expectedStatus);
 
@@ -63,7 +64,7 @@ public class Test_Unit {
             "\"amount\": \"133.20\"," +
             "\"timestamp\": \"4/23/2018 11:32 PM\"" +
             "}";
-        actualStatus = service.postTransactions(request);
+        actualStatus = service.insert(request);
         expectedStatus = HttpStatus.UNPROCESSABLE_ENTITY;
         assertEquals(actualStatus, expectedStatus);
     }
@@ -76,7 +77,7 @@ public class Test_Unit {
             "\"amount\": \"One hundred\"," +
             "\"timestamp\": \"" + now.format(dateTimeFormatter) + "\"" +
             "}";
-        actualStatus = service.postTransactions(request);
+        actualStatus = service.insert(request);
         expectedStatus = HttpStatus.UNPROCESSABLE_ENTITY;
         assertEquals(actualStatus, expectedStatus);
     }
@@ -84,14 +85,14 @@ public class Test_Unit {
     @Test
     public void whenRequestIsNotJSON_thenHttpStatusBadRequestAndNotCreated() {
         request = "Hello World!";
-        actualStatus = service.postTransactions(request);
+        actualStatus = service.insert(request);
         expectedStatus = HttpStatus.BAD_REQUEST;
         assertEquals(actualStatus, expectedStatus);
     }
 
     @Test
     public void deleteTransactions() {
-        HttpStatus actualStatus = service.deleteTransactions();
+        HttpStatus actualStatus = service.deleteAllData();
         HttpStatus expectedStatus = HttpStatus.NO_CONTENT;
         assertEquals(actualStatus, expectedStatus);
     }
